@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from database import get_connection
 import logging
+from services.auth_service import AuthService  # Importa tu AuthService
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -13,6 +12,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 router = APIRouter()
+auth_service = AuthService()  # Instancia de AuthService
 
 
 class LoginInput(BaseModel):
@@ -20,28 +20,21 @@ class LoginInput(BaseModel):
     contrasena: str
 
 
-@router.post("/login")
-def login(data: LoginInput):
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+@router.post("/login", response_model=LoginResponse)
+async def login(data: LoginInput):
     logger.debug(f"Intento de login para el correo: {data.correo}")
     try:
-        conn = get_connection()
-        logger.debug("Conexión a la base de datos exitosa.")
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        logger.debug("Cursor creado.")
-        cursor.execute(
-            "SELECT * FROM tbl_cliente WHERE correo_cliente = %s AND contrasenia = %s",
-            (data.correo, data.contrasena),
+        access_token = await auth_service.authenticate_user(
+            correo_cliente=data.correo, contrasenia=data.contrasena
         )
-        logger.debug("Consulta SQL ejecutada.")
-        cliente = cursor.fetchone()
-        logger.debug(f"Resultado de la consulta: {cliente}")
-        cursor.close()
-        conn.close()
-        logger.debug("Cursor y conexión cerrados.")
-
-        if cliente:
-            logger.info(f"Login exitoso para el cliente: {cliente['correo_cliente']}")
-            return {"mensaje": "Login exitoso", "cliente": cliente}
+        if access_token:
+            logger.info(f"Login exitoso para el correo: {data.correo}")
+            return LoginResponse(access_token=access_token)
         else:
             logger.warning(
                 f"Intento de login fallido para el correo: {data.correo} - Credenciales inválidas."

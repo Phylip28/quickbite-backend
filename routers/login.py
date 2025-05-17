@@ -23,18 +23,35 @@ class LoginInput(BaseModel):
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+    id_cliente: int
+    nombre_cliente: str
+    apellido_cliente: str
+    direccion_cliente: str
+    telefono_cliente: str
+    correo_cliente: str
 
 
 @router.post("/login", response_model=LoginResponse)
 async def login(data: LoginInput):
     logger.debug(f"Intento de login para el correo: {data.correo}")
     try:
-        access_token = await auth_service.authenticate_user(
+        user = await auth_service.authenticate_user(
             correo_cliente=data.correo, contrasenia=data.contrasena
         )
-        if access_token:
+        if user:
+            access_token = auth_service._create_access_token(
+                data={"sub": user["correo_cliente"]}
+            )
             logger.info(f"Login exitoso para el correo: {data.correo}")
-            return LoginResponse(access_token=access_token)
+            return LoginResponse(
+                access_token=access_token,
+                id_cliente=user["id_cliente"],
+                nombre_cliente=user["nombre_cliente"],
+                apellido_cliente=user["apellido_cliente"],
+                direccion_cliente=user["direccion_cliente"],
+                telefono_cliente=user["telefono_cliente"],
+                correo_cliente=user["correo_cliente"],
+            )
         else:
             logger.warning(
                 f"Intento de login fallido para el correo: {data.correo} - Credenciales inválidas."

@@ -71,21 +71,31 @@ class AuthService:
         conn = get_connection()
         cursor = conn.cursor()
         try:
-            # Buscar al cliente por correo electrónico
+            # Buscar al cliente por correo electrónico Y que esté ACTIVO
             cursor.execute(
-                "SELECT id_cliente, contrasenia FROM tbl_cliente WHERE correo_cliente = %s",
+                "SELECT id_cliente, nombre_cliente, apellido_cliente, direccion_cliente, telefono_cliente, correo_cliente, contrasenia FROM tbl_cliente WHERE correo_cliente = %s AND estado_cliente = 'ACTIVO'",
                 (correo_cliente,),
             )
-            client = cursor.fetchone()
+            user_data = cursor.fetchone()
             cursor.close()
             conn.close()
-            logger.debug(f"Resultado de la búsqueda del cliente: {client}")
+            logger.debug(f"Resultado de la búsqueda del cliente: {user_data}")
 
-            if not client:
-                logger.warning(f"Cliente no encontrado con el correo: {correo_cliente}")
-                return None  # Cliente no encontrado
+            if not user_data:
+                logger.warning(
+                    f"Cliente no encontrado o inactivo con el correo: {correo_cliente}"
+                )
+                return None
 
-            client_id, stored_password_hash = client
+            (
+                client_id,
+                nombre_cliente,
+                apellido_cliente,
+                direccion_cliente,
+                telefono_cliente,
+                correo_cliente_db,
+                stored_password_hash,
+            ) = user_data
 
             # Verificar la contraseña
             if bcrypt.verify(contrasenia, stored_password_hash):
@@ -93,12 +103,20 @@ class AuthService:
                 # Generar el token de acceso
                 access_token = self._create_access_token(data={"sub": str(client_id)})
                 logger.debug(f"Token de acceso generado: {access_token}")
-                return access_token
+                return {
+                    "access_token": access_token,
+                    "id_cliente": client_id,
+                    "nombre_cliente": nombre_cliente,
+                    "apellido_cliente": apellido_cliente,
+                    "direccion_cliente": direccion_cliente,
+                    "telefono_cliente": telefono_cliente,
+                    "correo_cliente": correo_cliente_db,
+                }
             else:
                 logger.warning(
                     f"Contraseña incorrecta para el cliente: {correo_cliente}"
                 )
-                return None  # Contraseña incorrecta
+                return None
         except psycopg2.Error as e:
             logger.error(
                 f"Error de base de datos durante la autenticación: {e}", exc_info=True

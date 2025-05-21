@@ -9,3 +9,5 @@ config
 pydantic
 pydantic[email]
 python-multipart
+pydantic_settings
+bcrypt

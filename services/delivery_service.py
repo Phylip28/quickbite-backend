@@ -19,22 +19,23 @@ class RepartidorBase(BaseModel):
 
 
 # Modelo para crear un nuevo rfrom database import get_db_cursor
-from models.delivery_model import (
+from models.delivery_model import (  # Asegúrate que los modelos se importan desde aquí
     RepartidorCreate,
     Repartidor,
     RepartidorUpdate,
-    TokenRepartidor,  # Asegúrate que este es el modelo que definimos en el paso anterior
-    # RepartidorLogin no se usa directamente aquí pero es bueno tenerlo importado si otros módulos lo necesitan
+    TokenRepartidor,
 )
-from database import (
-    get_db_cursor,
-)  # Asumo que esta es tu función para obtener el cursor
+from database import get_db_cursor
 from passlib.context import CryptContext
 from fastapi import HTTPException, status
 import psycopg2
 import jwt
-from datetime import datetime, timedelta, timezone
-from config import settings
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)  # Asegúrate que timezone está importado
+from config import settings  # Asumo que tienes settings.py en tu config
 import logging
 
 logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ async def create_repartidor(
                     repartidor_data.telefono_repartidor,
                     repartidor_data.dni_repartidor,
                     repartidor_data.vehiculo_repartidor,
-                    hashed_contrasenia,  # Usar la contraseña hasheada
+                    hashed_contrasenia,
                     (
                         repartidor_data.disponibilidad
                         if repartidor_data.disponibilidad is not None
@@ -164,7 +165,6 @@ async def authenticate_repartidor(
         logger.warning(f"Login fallido: Repartidor {correo_repartidor} no está activo.")
         return None
 
-    # Asegúrate que la columna de contraseña en tu DB se llame 'contrasenia' o ajusta aquí
     if not verify_password(contrasenia, repartidor_db["contrasenia"]):
         logger.warning(f"Login fallido: Contraseña incorrecta para {correo_repartidor}")
         return None
@@ -172,37 +172,41 @@ async def authenticate_repartidor(
     expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = _create_access_token(
         data={
-            "sub": str(repartidor_db["id_repartidor"]),  # ID como 'sub'
-            "id_repartidor": repartidor_db[
-                "id_repartidor"
-            ],  # Mantenemos id_repartidor para conveniencia
+            "sub": str(repartidor_db["id_repartidor"]),
+            "id_repartidor": repartidor_db["id_repartidor"],
             "role": "repartidor",
         },
         expires_delta=expires_delta,
     )
     logger.info(f"Repartidor {correo_repartidor} autenticado exitosamente.")
 
+    # --- INICIO DE LA MODIFICACIÓN ---
     # Construir el objeto TokenRepartidor con todos los campos necesarios
     return TokenRepartidor(
         access_token=access_token,
         token_type="bearer",
         id_repartidor=repartidor_db["id_repartidor"],
         nombre_repartidor=repartidor_db["nombre_repartidor"],
-        apellido_repartidor=repartidor_db["apellido_repartidor"],  # Añadido
+        apellido_repartidor=repartidor_db["apellido_repartidor"],
         correo_repartidor=repartidor_db["correo_repartidor"],
-        role="repartidor",  # Añadido y MUY IMPORTANTE
-        # Opcional: puedes añadir más campos del repartidor_db aquí si los definiste en TokenRepartidor
-        # telefono_repartidor=repartidor_db.get("telefono_repartidor"),
-        # disponibilidad=repartidor_db.get("disponibilidad"),
-        # vehiculo_repartidor=repartidor_db.get("vehiculo_repartidor"),
-        # placa_vehiculo=repartidor_db.get("placa_vehiculo"), # Si tienes este campo
+        role="repartidor",
+        telefono_repartidor=repartidor_db.get(
+            "telefono_repartidor"
+        ),  # Campo añadido/descomentado
+        vehiculo_repartidor=repartidor_db.get(
+            "vehiculo_repartidor"
+        ),  # Campo añadido/descomentado
+        # Si tienes más campos como 'placa_vehiculo' definidos en el modelo TokenRepartidor
+        # y recuperados por get_repartidor_by_correo, añádelos aquí:
+        # placa_vehiculo=repartidor_db.get("placa_vehiculo"),
     )
+    # --- FIN DE LA MODIFICACIÓN ---
 
 
 async def get_repartidor_by_correo(correo_repartidor: str) -> dict | None:
+    # ... (código de get_repartidor_by_correo sin cambios) ...
     with get_db_cursor() as cursor:
         try:
-            # Asegúrate que la columna de contraseña se llama 'contrasenia' en tbl_repartidor
             cursor.execute(
                 """
                 SELECT id_repartidor, nombre_repartidor, apellido_repartidor, correo_repartidor,
@@ -214,7 +218,7 @@ async def get_repartidor_by_correo(correo_repartidor: str) -> dict | None:
                 """,
                 (correo_repartidor,),
             )
-            return cursor.fetchone()  # Devuelve un dict o None
+            return cursor.fetchone()
         except psycopg2.Error as e:
             logger.error(
                 f"Error de BD al buscar repartidor por correo {correo_repartidor} (pgcode: {e.pgcode}): {e}",
@@ -236,6 +240,7 @@ async def get_repartidor_by_correo(correo_repartidor: str) -> dict | None:
 
 
 async def get_repartidor_by_id(id_repartidor: int) -> Repartidor | None:
+    # ... (código de get_repartidor_by_id sin cambios) ...
     with get_db_cursor() as cursor:
         try:
             cursor.execute(
@@ -275,6 +280,7 @@ async def get_repartidor_by_id(id_repartidor: int) -> Repartidor | None:
 async def update_repartidor(
     id_repartidor: int, repartidor_update: RepartidorUpdate
 ) -> Repartidor | None:
+    # ... (código de update_repartidor sin cambios) ...
     update_data = repartidor_update.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(
@@ -284,15 +290,12 @@ async def update_repartidor(
 
     set_clauses = []
     values = []
-    # Validar que los campos existan en el modelo RepartidorCreate (que define campos válidos para la DB)
-    # y no sea 'contrasenia'
     valid_fields = RepartidorCreate.model_fields.keys()
 
     for key, value in update_data.items():
         if key in valid_fields and key != "contrasenia":
             set_clauses.append(f"{key} = %s")
             values.append(value)
-        # else: logger.warning(f"Campo '{key}' ignorado durante la actualización del repartidor.")
 
     if not set_clauses:
         raise HTTPException(
@@ -347,6 +350,7 @@ async def update_repartidor(
 async def update_repartidor_disponibilidad(
     id_repartidor: int, disponibilidad: bool
 ) -> Repartidor | None:
+    # ... (código de update_repartidor_disponibilidad sin cambios) ...
     with get_db_cursor(commit=True) as cursor:
         try:
             cursor.execute(

@@ -66,12 +66,14 @@ class TokenRepartidor(BaseModel):
     token_type: str = "bearer"
     id_repartidor: int
     nombre_repartidor: str
-    apellido_repartidor: str  # Añadido
+    apellido_repartidor: str
     correo_repartidor: EmailStr
-    # Opcional: puedes añadir más campos si los necesitas inmediatamente después del login
-    # telefono_repartidor: Optional[str] = None
-    # disponibilidad: Optional[bool] = None
-    # vehiculo_repartidor: Optional[str] = None # Si tienes un campo específico para el tipo de vehículo, puedes añadirlo
+    telefono_repartidor: Optional[str] = None  # Descomentado
+    vehiculo_repartidor: Optional[str] = (
+        None  # Descomentado (asumiendo que este es el campo que quieres)
+    )
+    # Si tienes más detalles del vehículo como 'placa_vehiculo' y están en RepartidorBase/Repartidor,
+    # también puedes añadirlos aquí.
     # placa_vehiculo: Optional[str] = None
     role: str  # MUY IMPORTANTE para que Flutter sepa que es un repartidor
 

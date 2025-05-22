@@ -3,65 +3,54 @@ from typing import Optional, List
 import datetime
 
 
-# Modelo base para los campos comunes de un pedido
-class PedidoBase(BaseModel):
-    id_cliente: int
-    id_restaurante: int
-    estado_pedido: Optional[str] = (
-        "pendiente_confirmacion"  # Valor por defecto si aplica
-    )
-    total_pedido: float  # numeric(10,2) se puede representar como float
+# --- Modelos para los Items del Pedido ---
+class OrderItemBase(BaseModel):
+    nombre_producto: str
+    cantidad: int
+    precio_unitario: float
 
 
-# Modelo para crear un nuevo pedido
-# Podrías necesitar más campos aquí dependiendo de tu lógica de creación,
-# por ejemplo, una lista de productos del pedido.
-# Por ahora, lo mantenemos simple.
-class PedidoCreate(PedidoBase):
-    # Ejemplo: si los detalles del pedido vienen en la creación
-    # detalles: Optional[List[DetallePedidoCreate]] = None # Necesitarías definir DetallePedidoCreate
+class OrderItemCreate(OrderItemBase):
     pass
 
 
-# Modelo para representar un pedido en las respuestas de la API
-class Pedido(PedidoBase):
-    id_pedido: int
-    fecha_pedido: datetime.datetime  # Coincide con 'timestamp with time zone'
-    id_repartidor: Optional[int] = None  # Campo para el repartidor asignado
+class OrderItem(OrderItemBase):
+    id: int
+    order_id: int
 
     class Config:
-        from_attributes = True  # Para Pydantic V2
-        # orm_mode = True # Para Pydantic V1 si usas esa versión
+        from_attributes = True
 
 
-# Modelo para actualizar un pedido (ej. cambiar estado o asignar repartidor)
+# --- Modelos para el Pedido ---
+class PedidoBase(BaseModel):
+    id_cliente: int
+    id_restaurante: int
+    total_pedido: float
+    metodo_pago: str
+    direccion_entrega: str
+
+
+class PedidoCreate(PedidoBase):
+    items: List[OrderItemCreate]
+
+
+class Pedido(PedidoBase):
+    id_pedido: int
+    fecha_pedido: datetime.datetime
+    estado_pedido: str
+    id_repartidor: Optional[int] = None
+    items: List["OrderItem"] = []  # <--- CAMBIO: Usar string para la forward reference
+
+    class Config:
+        from_attributes = True
+
+
+# Si estás usando Pydantic v1, podrías necesitar esto al final del archivo,
+# aunque Pydantic v2 generalmente no lo requiere.
+# Pedido.update_forward_refs() # Descomenta si es necesario para Pydantic v1
+
+
 class PedidoUpdate(BaseModel):
     estado_pedido: Optional[str] = None
-    id_repartidor: Optional[int] = (
-        None  # Para permitir asignar/desasignar un repartidor
-    )
-    # Puedes añadir otros campos que se puedan actualizar
-
-
-# Si tienes una tabla de detalles de pedido (tbl_detalles_venta),
-# también necesitarías modelos para ella. Por ejemplo:
-# class DetalleVentaBase(BaseModel):
-#     id_producto: int
-#     cantidad: int
-#     precio_unitario: float
-#     subtotal: float
-
-# class DetalleVentaCreate(DetalleVentaBase):
-#     pass
-
-# class DetalleVenta(DetalleVentaBase):
-#     id_detalle_venta: int
-#     id_pedido: int # Para vincularlo al pedido
-
-#     class Config:
-#         from_attributes = True
-#         # orm_mode = True
-
-# Y luego podrías tener un modelo de Pedido con sus detalles:
-# class PedidoConDetalles(Pedido):
-#    detalles: List[DetalleVenta] = []
+    id_repartidor: Optional[int] = None

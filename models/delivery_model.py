@@ -21,6 +21,9 @@ class RepartidorBase(BaseModel):
 # Modelo para crear un nuevo repartidor (incluye la contraseña)
 class RepartidorCreate(RepartidorBase):
     contrasenia: str = Field(..., min_length=8)
+    # Los siguientes campos ya tienen default en RepartidorBase,
+    # pero se pueden redefinir aquí si se quiere un default diferente en creación
+    # o para hacerlos explícitamente opcionales en el payload de creación.
     disponibilidad: Optional[bool] = Field(default=True)
     estado_repartidor: Optional[str] = Field(default="ACTIVO")
 
@@ -36,6 +39,8 @@ class RepartidorUpdate(BaseModel):
     vehiculo_repartidor: Optional[str] = None
     disponibilidad: Optional[bool] = None
     estado_repartidor: Optional[str] = None
+    # Si se permite actualizar la contraseña, se añadiría aquí:
+    # contrasenia: Optional[str] = Field(default=None, min_length=8)
 
 
 # Modelo para representar un repartidor en las respuestas de la API (sin la contraseña)
@@ -44,7 +49,7 @@ class Repartidor(RepartidorBase):
     fecha_registro_repartidor: datetime.datetime
 
     class Config:
-        from_attributes = True
+        from_attributes = True  # Para Pydantic v2 (o orm_mode = True para v1)
 
 
 # Modelo para el login del repartidor
@@ -54,10 +59,11 @@ class RepartidorLogin(BaseModel):
 
 
 # Modelo para los datos contenidos en el token JWT del repartidor
+# CORREGIDO para coincidir con el uso en authenticator.py
 class TokenDataRepartidor(BaseModel):
-    sub: str  # Representará el id_repartidor como string
-    id_repartidor: int  # Para acceso directo si es necesario dentro del backend
-    role: str = "repartidor"  # Asegura que el rol esté y tenga valor por defecto
+    correo_repartidor: EmailStr  # 'sub' del JWT se espera que sea el correo
+    id_repartidor: int  # Campo 'id_repartidor' del JWT
+    role: str  # Campo 'role' del JWT, se espera 'repartidor'
 
 
 # Modelo para la respuesta del token al hacer login
@@ -68,13 +74,8 @@ class TokenRepartidor(BaseModel):
     nombre_repartidor: str
     apellido_repartidor: str
     correo_repartidor: EmailStr
-    telefono_repartidor: Optional[str] = None  # Descomentado
-    vehiculo_repartidor: Optional[str] = (
-        None  # Descomentado (asumiendo que este es el campo que quieres)
-    )
-    # Si tienes más detalles del vehículo como 'placa_vehiculo' y están en RepartidorBase/Repartidor,
-    # también puedes añadirlos aquí.
-    # placa_vehiculo: Optional[str] = None
+    telefono_repartidor: Optional[str] = None
+    vehiculo_repartidor: Optional[str] = None
     role: str  # MUY IMPORTANTE para que Flutter sepa que es un repartidor
 
 

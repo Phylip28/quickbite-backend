@@ -172,7 +172,9 @@ async def authenticate_repartidor(
     expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = _create_access_token(
         data={
-            "sub": str(repartidor_db["id_repartidor"]),
+            "sub": repartidor_db[
+                "correo_repartidor"
+            ],  # <--- ASEGÚRATE QUE ESTE CAMBIO ESTÉ HECHO
             "id_repartidor": repartidor_db["id_repartidor"],
             "role": "repartidor",
         },
